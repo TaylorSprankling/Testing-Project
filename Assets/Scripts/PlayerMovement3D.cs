@@ -1,54 +1,39 @@
-using NaughtyAttributes;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(CapsuleCollider), typeof(Rigidbody))]
 public class PlayerMovement3D : MonoBehaviour
 {
-    [Foldout("References")]
-    [SerializeField] private CapsuleCollider _capsuleCollider;
-    [Foldout("References")]
-    [SerializeField] private Rigidbody _rigidBody;
-    [Foldout("References")]
-    [SerializeField] private PlayerInput _playerInput;
-    [Foldout("References")]
-    [SerializeField] private Transform _cameraOrientation;
-    
-    
-    [BoxGroup("Ground Settings")]
+#region FIELDS
+    [Header("Ground Settings")]
     [SerializeField] private float _baseMovementSpeed = 4f;
-    [BoxGroup("Ground Settings")]
     [SerializeField] private float _sprintMovementSpeed = 6f;
-    [BoxGroup("Ground Settings")]
     [SerializeField] private float _groundedDistance = 0.01f;
-    [BoxGroup("Ground Settings")]
     [SerializeField] private float _groundedLinearDamping = 25f;
-    [BoxGroup("Ground Settings")] [Range(0f, 90f)]
     [SerializeField] private float _maxSlopeAngle = 45f;
     
-    [BoxGroup("Air Settings")]
+    [Header("Air Settings")]
     [SerializeField] private float _jumpHeight = 2f;
-    [BoxGroup("Air Settings")] [Tooltip("The scale at which to apply the movement speed force while in the air. 1 = 1s, 2 = 0.5s, 4 = 0.25s etc.")]
+    [Tooltip("The scale at which to apply the movement speed force while in the air. 1 = 1s, 2 = 0.5s, 4 = 0.25s etc.")]
     [SerializeField] private float _airControlMultiplier = 5f;
-    [BoxGroup("Air Settings")]
     [SerializeField] private float _terminalVelocity = 100f;
-    [BoxGroup("Air Settings")]
     [SerializeField] private float _gravityMultiplier = 1f;
     
+    private CapsuleCollider _capsuleCollider;
+    private Rigidbody _rigidBody;
+    private PlayerInput _playerInput;
+    private Transform _playerOrientation;
     private Vector2 _moveInput;
     private Vector3 _moveDirection;
-    private float _effectiveMovementSpeed;
     private RaycastHit _groundedHit;
-    
-    [Foldout("Debug")] [ReadOnly]
-    [SerializeField] private bool _isGrounded;
-    [Foldout("Debug")] [ReadOnly]
-    [SerializeField] private bool _onSteepSlope;
-    [Foldout("Debug")] [ReadOnly]
-    [SerializeField] private bool _inJumpStartup;
-    [Foldout("Debug")] [ReadOnly]
+    private float _effectiveMovementSpeed;
+    private bool _isGrounded;
+    private bool _onSteepSlope;
+    private bool _inJumpStartup;
     private bool _sprintPressed;
+#endregion
     
+#region UNITY METHODS
     private void Reset()
     {
         GetReferences();
@@ -82,13 +67,15 @@ public class PlayerMovement3D : MonoBehaviour
         ApplyAirDrag();
         ApplyGravityMultiplier();
     }
+#endregion
     
+#region PRIVATE METHODS
     private void GetReferences()
     {
         if (!_capsuleCollider) _capsuleCollider = GetComponent<CapsuleCollider>();
         if (!_rigidBody) _rigidBody = GetComponent<Rigidbody>();
         if (!_playerInput) _playerInput = GetComponent<PlayerInput>();
-        if (!_cameraOrientation) _cameraOrientation = GetComponentInChildren<PlayerOrientation>().transform;
+        if (!_playerOrientation) _playerOrientation = GetComponentInChildren<PlayerOrientation>().transform;
     }
     
     private void HandleInputAction(InputAction.CallbackContext context)
@@ -119,7 +106,7 @@ public class PlayerMovement3D : MonoBehaviour
     {
         // Get the movement direction relative to players facing direction
         Vector3 inputDirection3D = new Vector3(_moveInput.x, 0, _moveInput.y);
-        Quaternion relativeRotation = Quaternion.AngleAxis(_cameraOrientation.eulerAngles.y, Vector3.up);
+        Quaternion relativeRotation = Quaternion.AngleAxis(_playerOrientation.eulerAngles.y, Vector3.up);
         _moveDirection = relativeRotation * inputDirection3D;
     }
     
@@ -128,7 +115,7 @@ public class PlayerMovement3D : MonoBehaviour
         float sphereCastRadius = _capsuleCollider.radius * 0.5f;
         Vector3 originOffset = Vector3.up * sphereCastRadius + Vector3.up * 0.1f;
         float maxDistance = _groundedDistance + originOffset.magnitude;
-        bool castHit = Physics.SphereCast(transform.position + originOffset, sphereCastRadius,Vector3.down, out _groundedHit, maxDistance);
+        bool castHit = Physics.SphereCast(transform.position + originOffset, sphereCastRadius, Vector3.down, out _groundedHit, maxDistance);
         _onSteepSlope = Vector3.Angle(Vector3.up, _groundedHit.normal) >= _maxSlopeAngle;
         _isGrounded = castHit && !_onSteepSlope;
     }
@@ -169,6 +156,7 @@ public class PlayerMovement3D : MonoBehaviour
         switch (_isGrounded)
         {
             case true:
+            {
                 // Set movement speed accordingly (could probably make this better if movement speed will be changed often)
                 _effectiveMovementSpeed = _sprintPressed switch { true => _sprintMovementSpeed, _ => _baseMovementSpeed };
                 
@@ -179,6 +167,7 @@ public class PlayerMovement3D : MonoBehaviour
                 // Add the force in the move direction relative to the object facing direction
                 _rigidBody.AddForce(_effectiveMovementSpeed * dragMultiplier * relativeSlopeMoveDirection, ForceMode.Acceleration);
                 break;
+            }
             
             case false when _onSteepSlope && relativeSlopeMoveDirection.y > 0:
             {
@@ -225,4 +214,5 @@ public class PlayerMovement3D : MonoBehaviour
         _inJumpStartup = true;
         _rigidBody.AddForce(Vector3.up * jumpForce, ForceMode.VelocityChange);
     }
+#endregion
 }
